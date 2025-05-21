@@ -11,7 +11,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -19,18 +19,18 @@ jobs:
       - name: Install NuGet CLI
         uses: nuget/setup-nuget@v1
 
-      - name: Restore all NuGet packages (packages.config & PackageReference)
+      - name: Restore packages (packages.config & PackageReference)
         run: |
           nuget restore src/Downkyi.sln
           dotnet restore src/Downkyi.sln
 
-      - name: Setup MSBuild (Visual Studio)
+      - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      - name: Build solution in Release (Any CPU)
-        run: msbuild src/Downkyi.sln /m /p:Configuration=Release /p:Platform="Any CPU"
+      - name: Build solution in Release (Any CPU, include win RID)
+        run: msbuild src/Downkyi.sln /m /p:Configuration=Release /p:Platform="Any CPU" /p:RuntimeIdentifiers=win
 
-      - name: Upload EXE and related DLLs
+      - name: Upload EXE and DLLs
         if: success()
         uses: actions/upload-artifact@v4
         with:
