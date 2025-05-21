@@ -15,9 +15,8 @@ jobs:
     runs-on: windows-latest
 
     env:
-      # 请确保这些路径和名称与您的仓库中的实际值一致
-      Solution_Name: Downkyi.sln
-      # Test_Project_Path: tests/Downkyi.Tests/Downkyi.Tests.csproj # 已移除测试项目路径
+      # 修正解决方案文件的路径
+      Solution_Name: src/Downkyi.sln
       Wap_Project_Directory: src/Downkyi.WPF
       Wap_Project_Path: src/Downkyi.WPF/Downkyi.WPF.wapproj
 
@@ -34,9 +33,6 @@ jobs:
 
     - name: Setup MSBuild.exe
       uses: microsoft/setup-msbuild@v2
-
-    # - name: Execute unit tests # 已移除单元测试步骤
-    #   run: dotnet test ${{ env.Test_Project_Path }} --configuration ${{ matrix.configuration }}
 
     - name: Restore the application
       run: msbuild $env:Solution_Name /t:Restore /p:Configuration=$env:Configuration
