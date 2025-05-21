@@ -15,9 +15,7 @@ jobs:
     runs-on: windows-latest
 
     env:
-      Solution_Name: src/Downkyi.sln # 解决方案文件路径已修正
-      # Wap_Project_Directory: src/Downkyi.WPF # 暂时移除，因为路径似乎不正确
-      # Wap_Project_Path: src/Downkyi.WPF/Downkyi.WPF.wapproj # 暂时移除
+      Solution_Name: src/Downkyi.sln # 解决方案文件路径
 
     steps:
     - name: Checkout
@@ -28,59 +26,25 @@ jobs:
     - name: Install .NET Core
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 8.0.x
+        dotnet-version: 8.0.x # 确保与项目兼容的 .NET 版本
 
     - name: Setup MSBuild.exe
       uses: microsoft/setup-msbuild@v2
 
-    - name: Restore the application
-      run: msbuild $env:Solution_Name /t:Restore /p:Configuration=$env:Configuration
-      env:
-        Configuration: ${{ matrix.configuration }}
+    - name: Restore NuGet packages
+      run: dotnet restore $env:Solution_Name
 
     - name: Build the solution
       run: msbuild $env:Solution_Name /p:Configuration=$env:Configuration
       env:
         Configuration: ${{ matrix.configuration }}
 
-    # --- 以下是与 PFX 签名和 WAP 项目打包相关的步骤，已暂时注释掉 ---
-    # - name: Decode the pfx
-    #   run: |
-    #     $pfx_cert_byte = [System.Convert]::FromBase64String("${{ secrets.Base64_Encoded_Pfx }}")
-    #     # 需要确认 $env:Wap_Project_Directory 的正确路径
-    #     $certificatePath = Join-Path -Path $env:Wap_Project_Directory -ChildPath GitHubActionsWorkflow.pfx
-    #     [IO.File]::WriteAllBytes("$certificatePath", $pfx_cert_byte)
-
-    # - name: Create the app package
-    #   # 需要确认 $env:Wap_Project_Path 的正确路径和打包方式
-    #   run: msbuild $env:Wap_Project_Path /p:Configuration=$env:Configuration /p:UapAppxPackageBuildMode=$env:Appx_Package_Build_Mode /p:AppxBundle=$env:Appx_Bundle # /p:PackageCertificateKeyFile=GitHubActionsWorkflow.pfx
-    #   env:
-    #     Appx_Bundle: Always
-    #     Appx_Bundle_Platforms: x86|x64
-    #     Appx_Package_Build_Mode: StoreUpload
-    #     Configuration: ${{ matrix.configuration }}
-
-    # - name: Remove the pfx
-    #   if: always()
-    #   run: |
-    #     # 需要确认 $env:Wap_Project_Directory 的正确路径
-    #     $certificatePath = Join-Path -Path $env:Wap_Project_Directory -ChildPath GitHubActionsWorkflow.pfx
-    #     if (Test-Path $certificatePath) {
-    #       Remove-Item -Path $certificatePath
-    #     }
-
-    # - name: Upload build artifacts
-    #   # 需要确认打包产物的实际路径
-    #   uses: actions/upload-artifact@v4
-    #   with:
-    #     name: MSIX Package (${{ matrix.configuration }})
-    #     path: ${{ env.Wap_Project_Directory }}\AppPackages
-    # --- 注释结束 ---
-
-    - name: Upload Build Output (Placeholder)
+    - name: Upload Executable Artifacts
+      if: success() # 仅在构建成功时上传
       uses: actions/upload-artifact@v4
       with:
-        name: Build Output (${{ matrix.configuration }})
-        # 这个路径需要根据实际构建输出调整，例如主项目的 bin/Release 目录
-        # 例如: path: src/DownKyi/bin/${{ matrix.configuration }}/
-        path: D:/a/downkyi/downkyi/src # 暂时上传整个src目录以供检查
+        name: DownKyi Executable (${{ matrix.configuration }})
+        # 通常主项目的输出会在其 bin/Release 目录下，具体子目录可能依赖于目标框架
+        # 例如 src/DownKyi/bin/Release/net8.0-windows/
+        # 我们先尝试上传整个 Release 输出目录，您可以在里面找到 .exe
+        path: src/DownKyi/bin/${{ matrix.configuration }}/
