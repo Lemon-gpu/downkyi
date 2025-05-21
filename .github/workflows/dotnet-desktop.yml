@@ -10,12 +10,12 @@ jobs:
   build:
     strategy:
       matrix:
-        configuration: [Debug, Release]
+        configuration: [Release] # 只构建 Release 版本
 
     runs-on: windows-latest
 
     env:
-      # Replace the values below with the actual paths/names from your repository
+      # 请确保这些路径和名称与您的仓库中的实际值一致
       Solution_Name: Downkyi.sln
       Test_Project_Path: tests/Downkyi.Tests/Downkyi.Tests.csproj
       Wap_Project_Directory: src/Downkyi.WPF
@@ -36,36 +36,42 @@ jobs:
       uses: microsoft/setup-msbuild@v2
 
     - name: Execute unit tests
-      run: dotnet test ${{ env.Test_Project_Path }}
+      run: dotnet test ${{ env.Test_Project_Path }} --configuration ${{ matrix.configuration }} # 明确使用矩阵中的配置
 
     - name: Restore the application
       run: msbuild $env:Solution_Name /t:Restore /p:Configuration=$env:Configuration
       env:
         Configuration: ${{ matrix.configuration }}
 
+    # 代码签名步骤 - 如果您没有签名证书或不想签名，可以注释掉以下三个相关步骤
+    # 您需要在仓库的 Settings > Secrets and variables > Actions 中添加名为 Base64_Encoded_Pfx 的 Secret
     - name: Decode the pfx
-      # If you don't have a signing certificate, you can comment out or remove these steps
       run: |
         $pfx_cert_byte = [System.Convert]::FromBase64String("${{ secrets.Base64_Encoded_Pfx }}")
         $certificatePath = Join-Path -Path $env:Wap_Project_Directory -ChildPath GitHubActionsWorkflow.pfx
         [IO.File]::WriteAllBytes("$certificatePath", $pfx_cert_byte)
+      # 如果 secrets.Base64_Encoded_Pfx 未设置，此步骤可能会失败。
+      # 如果您不需要签名，请考虑注释掉此步骤以及后续的签名相关步骤。
 
     - name: Create the app package
-      # If you don't have a WAP project, remove or adjust this step
       run: msbuild $env:Wap_Project_Path /p:Configuration=$env:Configuration /p:UapAppxPackageBuildMode=$env:Appx_Package_Build_Mode /p:AppxBundle=$env:Appx_Bundle /p:PackageCertificateKeyFile=GitHubActionsWorkflow.pfx
       env:
         Appx_Bundle: Always
-        Appx_Bundle_Platforms: x86|x64
-        Appx_Package_Build_Mode: StoreUpload
+        Appx_Bundle_Platforms: x86|x64 # 您可以根据需要调整平台，例如只保留 x64
+        Appx_Package_Build_Mode: StoreUpload # 或者 Sideload，如果您不通过商店分发
         Configuration: ${{ matrix.configuration }}
 
     - name: Remove the pfx
-      # If you don't have a signing certificate, you can comment or remove
-      run: Remove-Item -path $env:Wap_Project_Directory\GitHubActionsWorkflow.pfx
+      if: always() # 确保即使签名失败也尝试移除pfx文件（如果已创建）
+      run: |
+        $certificatePath = Join-Path -Path $env:Wap_Project_Directory -ChildPath GitHubActionsWorkflow.pfx
+        if (Test-Path $certificatePath) {
+          Remove-Item -Path $certificatePath
+        }
+
 
     - name: Upload build artifacts
-      # Adjust if you want to upload exe or other output files
       uses: actions/upload-artifact@v4
       with:
-        name: MSIX Package
-        path: ${{ env.Wap_Project_Directory }}\AppPackages
+        name: MSIX Package (${{ matrix.configuration }})
+        path: ${{ env.Wap_Project_Directory }}\AppPackages # MSIX 包通常在此目录下
