@@ -1,4 +1,4 @@
-name: .NET Core Desktop
+name: Build Downkyi EXE
 
 on:
   push:
@@ -8,44 +8,33 @@ on:
 
 jobs:
   build:
-    strategy:
-      matrix:
-        configuration: [Release] # 只构建 Release 版本
-
     runs-on: windows-latest
 
-    env:
-      Solution_Name: src/Downkyi.sln # 解决方案文件路径
-
     steps:
-    - name: Checkout
+    - name: Checkout repository
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
-    - name: Install .NET Core SDK
+    - name: Install .NET 8 SDK
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 8.0.x # 确保与项目兼容的 .NET 版本
+        dotnet-version: 8.0.x
 
-    # Removed 'Setup MSBuild.exe' step to use the SDK's MSBuild
+    - name: Setup NuGet CLI
+      uses: nuget/setup-nuget@v1
 
-    - name: Restore NuGet packages
-      # Using dotnet msbuild to ensure SDK's MSBuild is used
-      run: dotnet msbuild $env:Solution_Name /t:Restore /p:RestorePackagesConfig=true
+    - name: Restore all NuGet packages (packages.config support)
+      run: nuget restore src/Downkyi.sln
 
-    - name: Build the solution
-      # Using dotnet msbuild to ensure SDK's MSBuild is used
-      run: dotnet msbuild $env:Solution_Name /p:Configuration=$env:Configuration /p:Platform="Any CPU"
-      env:
-        Configuration: ${{ matrix.configuration }}
+    - name: Build solution in Release
+      run: dotnet msbuild src/Downkyi.sln /p:Configuration=Release /p:Platform="Any CPU"
 
-    - name: Upload Executable Artifacts
-      if: success() # 仅在构建成功时上传
+    - name: Upload EXE and DLL output
+      if: success()
       uses: actions/upload-artifact@v4
       with:
-        name: DownKyi Executable (${{ matrix.configuration }})
-        # 主项目的输出通常在其 bin/Release 目录下，具体子目录可能依赖于目标框架
-        # 例如: src/DownKyi/bin/Release/net8.0-windows/
-        # 上传整个 Release 输出目录，您可以在里面找到 .exe
-        path: src/DownKyi/bin/${{ matrix.configuration }}/
+        name: Downkyi-Release
+        path: |
+          src/DownKyi/bin/Release/
+          src/DownKyi/bin/Release/net8.0-windows/
